@@ -163,4 +163,66 @@ main {
       border-radius: 8px;
     }
   }
+/* ---------    Login and Singup Pages   ----------- */
+.auth-form {
+    max-width: 400px;
+    margin: 2rem auto;
+    padding: 2rem;
+    border-radius: 12px;
+    background-color: #1f1f1f;
+    color: #f0f0f0;
+  }
+  
+  .auth-form .form-group {
+    margin-bottom: 1.5rem;
+  }
+  
+  .auth-form input {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #444;
+    border-radius: 8px;
+    background-color: #2c2c2c;
+    color: #f0f0f0;
+  }
+  
+  .auth-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #cccccc;
+  }
+  
+  .auth-form .submit-btn {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #0a84ff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .auth-form .submit-btn:hover {
+    background-color: #006edc;
+  }
+  
+  .form-link {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #aaaaaa;
+  }
+  
+  .form-link a {
+    color: #0a84ff;
+    text-decoration: none;
+  }
+  
+  .form-link a:hover {
+    text-decoration: underline;
+  }
   

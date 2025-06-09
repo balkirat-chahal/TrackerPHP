@@ -1,6 +1,30 @@
 <?php
 include 'components.php';
-// Pages: 'home' for the next todo, 'all' for full list, 'add' for task form
+include 'utils.php';
+// Pages: 'home' for the next todo, 'all' for full list, 'add' for task form, 'login', 'signup'
+
+// ######### Connecting to the Database #############
+
+// Setting the credentials for the database
+loadenv(__DIR__ . "/.env");
+$host = 'localhost';
+$user = getenv("DB_USER");
+$password = getenv("DB_PASS");
+$dbname = 'trackerphp';
+
+// connecting to the mysql server
+$conn = mysqli_connect($host, $user, $password);
+if (!$conn) {
+    die("Connection failed: " . mysqli_connect_error());
+}
+
+// Create database if not exists and select it
+$sql = "CREATE DATABASE IF NOT EXISTS $dbname";
+if (!mysqli_query($conn, $sql)) {
+    die("Error creating database: " . mysqli_error($conn));
+}
+
+mysqli_select_db($conn, $dbname);
 
 // Sample data for now for working on the design
 $todos = [
@@ -27,19 +51,35 @@ $todos = [
     ]
 ];
 
-// For now just adding the task in the array, but later I will add it put it in a database
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $todos[] = [
-        'title' => $_POST['title'] ?? 'Untitled',
-        'description' => $_POST['description'] ?? '',
-        'due' => $_POST['due'] ?? '',
-        'duration' => $_POST['duration'] ?? '',
-        'priority' => $_POST['priority'] ?? 'Low'
-    ];
+
+// ######### Controllers ############
+
+// For now just adding the task to the database, not using users yet so user_id is NULL
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['page'] ?? '') === 'add') {
+    $title = $_POST['title'] ?? 'Untitled';
+    $description = $_POST['description'] ?? '';
+    $due = $_POST['due'] ?? '';
+    $duration = ($_POST['duration'] ?? '') . ' minutes';
+    $priority = $_POST['priority'] ?? 'Low';
+
+    // Use a prepared statement to safely insert the data
+    $stmt = mysqli_prepare($conn, "INSERT INTO todos (user_id, title, description, due, duration, priority) VALUES (NULL, ?, ?, ?, ?, ?)");
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "sssss", $title, $description, $due, $duration, $priority);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+    } else {
+        die("Failed to prepare statement: " . mysqli_error($conn));
+    }
+
+    header("Location: ?page=all");
+    exit();
 }
 
-// Determine which page to show
-$page = $_GET['page'] ?? 'home';        // If a page was provided then we use that otherwise we go to home
+
+// ######### UI #############
+
+$page = $_GET['page'] ?? 'home';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -52,35 +92,31 @@ $page = $_GET['page'] ?? 'home';        // If a page was provided then we use th
 <body>
   <!-- Navigation Bar  -->
   <nav>
-    <!-- Directs to the page we want to go to -->
     <a href="?page=home">Home</a>
     <a href="?page=all">All Todos</a>
-    <a href="#">Login</a>
+    <a href="?page=login">Login</a>
   </nav>
 
   <!-- Main Content Area -->
-  <!-- Here I am practicing using php and html syntax not using echo -->
   <main>
+
     <!-------  HOME PAGE ------->
-    <?php if ($page === 'home'): ?> <!-- On home page show only the next todo -->
+    <?php if ($page === 'home'): ?>
       <h1>Next Todo</h1>
-      <?php $todo = $todos[0]; 
+      <?php $todo = $todos[0];
         todoCard($todo);
       ?>
-    
+
     <!------- ALL TODOS PAGE ------->
     <?php elseif ($page === 'all'): ?>
       <h1>All Todos</h1>
-      <?php foreach ($todos as $todo):  // On All Todos page, show all todos
+      <?php foreach ($todos as $todo):
         todoCard($todo);
-        ?>
-      <?php endforeach; ?>
+      endforeach; ?>
 
-
-      <!-------- ADD TODO PAGE ----------->
-      <?php elseif ($page === 'add'): ?>
+    <!-------- ADD TODO PAGE ----------->
+    <?php elseif ($page === 'add'): ?>
       <h1>Add New Task</h1>
-      <!-- Simple form to add a new task -->
       <form method="POST" class="task-form">
         <div class="form-group">
           <label for="title">Title</label>
@@ -112,6 +148,42 @@ $page = $_GET['page'] ?? 'home';        // If a page was provided then we use th
         </div>
 
         <button type="submit" class="submit-btn">+ Add Task</button>
+      </form>
+
+    <!-------- LOGIN PAGE --------->
+    <?php elseif ($page === 'login'): ?>
+      <h1>Login</h1>
+      <form class="auth-form">
+        <div class="form-group">
+          <label for="login-username">Username</label>
+          <input type="text" id="login-username" name="username" placeholder="Enter your username" required>
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" name="password" placeholder="Enter your password" required>
+        </div>
+
+        <button type="submit" class="submit-btn">Login</button>
+        <p class="form-link">Don't have an account? <a href="?page=signup">Create one</a></p>
+      </form>
+
+    <!-------- SIGNUP PAGE --------->
+    <?php elseif ($page === 'signup'): ?>
+      <h1>Create Account</h1>
+      <form class="auth-form">
+        <div class="form-group">
+          <label for="signup-username">Username</label>
+          <input type="text" id="signup-username" name="username" placeholder="Choose a username" required>
+        </div>
+
+        <div class="form-group">
+          <label for="signup-password">Password</label>
+          <input type="password" id="signup-password" name="password" placeholder="Choose a password" required>
+        </div>
+
+        <button type="submit" class="submit-btn">Sign Up</button>
+        <p class="form-link">Already have an account? <a href="?page=login">Login here</a></p>
       </form>
     <?php endif; ?>
 
