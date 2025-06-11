@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $page === 'login') {
     $stmt = mysqli_prepare($conn, "SELECT id, password FROM users WHERE username = ?");
     mysqli_stmt_bind_param($stmt, "s", $username);
     mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $id, $hashed);
+    mysqli_stmt_bind_result($stmt, $id, $hashed); // $id <- id, $hashed <- hashed password stored in db
 
     if (mysqli_stmt_fetch($stmt) && password_verify($password, $hashed)) {
         $_SESSION['user_id'] = $id;
@@ -88,6 +88,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $page === 'add') {
     exit();
 }
 
+// Handle marking a todo as done
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['done_id'])) {
+    $done_id = intval($_POST['done_id']);
+    $stmt = mysqli_prepare($conn, "UPDATE todos SET is_completed = TRUE WHERE id = ? AND user_id = ?");
+    mysqli_stmt_bind_param($stmt, "ii", $done_id, $_SESSION['user_id']);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+
+    header("Location: ?page=" . $page);
+    exit();
+}
+
+
 // ######### UI #############
 
 $page = $_GET['page'] ?? 'home';
@@ -95,12 +108,59 @@ $page = $_GET['page'] ?? 'home';
 // Fetch user todos if logged in
 $todos = [];
 if (isset($_SESSION['user_id'])) {
-    $stmt = mysqli_prepare($conn, "SELECT title, description, due, duration, priority FROM todos WHERE user_id = ? ORDER BY due ASC, priority ASC, duration ASC");
+    // Pending todos
+    $stmt = mysqli_prepare($conn, "
+        SELECT id, title, description, due, duration, priority 
+        FROM todos 
+        WHERE user_id = ? AND is_completed = FALSE AND due > NOW()
+        ORDER BY due ASC, FIELD(priority, 'High', 'Medium', 'Low'), duration ASC
+    ");
+
     mysqli_stmt_bind_param($stmt, "i", $_SESSION['user_id']);
     mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $title, $description, $due, $duration, $priority);
+    mysqli_stmt_bind_result($stmt, $id, $title, $description, $due, $duration, $priority);
+
+    // Run this loop as long as fetch is reurning data
     while (mysqli_stmt_fetch($stmt)) {
-        $todos[] = compact('title', 'description', 'due', 'duration', 'priority');
+        $todos[] = compact('id', 'title', 'description', 'due', 'duration', 'priority');
+    }
+    mysqli_stmt_close($stmt);
+}
+
+$completed_todos = [];
+if (isset($_SESSION['user_id'])){
+     // Completed todos
+     $stmt2 = mysqli_prepare($conn, "
+     SELECT id, title, description, due, duration, priority
+     FROM todos
+     WHERE user_id = ? AND is_completed = TRUE
+     ORDER BY due DESC, priority DESC, duration DESC
+    ");
+    mysqli_stmt_bind_param($stmt2, "i", $_SESSION['user_id']);
+    mysqli_stmt_execute($stmt2);
+    mysqli_stmt_bind_result($stmt2, $id, $title, $description, $due, $duration, $priority);
+
+    # Run this loop as long as fetch is returning data
+    while (mysqli_stmt_fetch($stmt2)) {
+        $completed_todos[] = compact('id', 'title', 'description', 'due', 'duration', 'priority');
+    }
+
+    mysqli_stmt_close($stmt2);
+}
+
+$incomplete_todos = [];
+if(isset($_SESSION['user_id'])){
+    // Incomplete Todos
+    $stmt = mysqli_prepare($conn, "
+        SELECT id, title, description, due, duration, priority
+        FROM todos
+        WHERE user_id = ? AND is_completed = FALSE AND due < NOW()
+    ");
+    mysqli_stmt_bind_param($stmt, "i", $_SESSION['user_id']);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $id, $title, $description, $due, $duration, $priority);
+    while(mysqli_stmt_fetch($stmt)) {
+        $incomplete_todos[] = compact('id', 'title', 'description', 'due', 'duration', 'priority');
     }
     mysqli_stmt_close($stmt);
 }
@@ -110,7 +170,7 @@ if (isset($_SESSION['user_id'])) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Todo App</title>
+  <title>Task Tracker</title>
   <link rel="stylesheet" type="text/css" href="styles.css" />
 </head>
 <body>
@@ -130,12 +190,29 @@ if (isset($_SESSION['user_id'])) {
     <h1 class="app-title"> Task Tracker </h1>
     <br/>
     <?php if ($page === 'home' && $todos): ?>
-      <h1>Next Todo</h1>
+      <h1>Next Task</h1>
       <?php todoCard($todos[0]); ?>
 
     <?php elseif ($page === 'all'): ?>
-      <h1>All Todos</h1>
-      <?php foreach ($todos as $todo) todoCard($todo); ?>
+      <h1>Upcoming Tasks</h1>
+      <?php 
+      if($todos){
+        foreach ($todos as $todo) todoCard($todo);
+      }
+       ?>
+      <h1>Completed Tasks </h1>
+      <?php 
+      if($completed_todos){
+        foreach($completed_todos as $completed_todo) completedCard($completed_todo);
+      }
+       ?>
+       <h1> Incomplete Tasks </h1>
+       <?php 
+       if($incomplete_todos){
+        foreach($incomplete_todos as $incomplete_todo) incompleteCard($incomplete_todo);
+       }
+       ?>
+
 
     <?php elseif ($page === 'add'): ?>
       <h1>Add New Task</h1>
@@ -203,7 +280,7 @@ if (isset($_SESSION['user_id'])) {
     <?php endif; ?>
   </main>
 
-  <?php if (isset($_SESSION['user_id'])): ?>
+  <?php if (isset($_SESSION['user_id']) && $page != "add"): ?>
     <a href="?page=add" class="add-task-button">+ Add Task</a>
   <?php endif; ?>
 </body>

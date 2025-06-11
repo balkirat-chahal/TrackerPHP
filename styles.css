@@ -55,6 +55,22 @@ main {
 .todo.medium { border-left-color: #ffaf00; }
 .todo.low { border-left-color: #619955; }
 
+.done-btn {
+    background-color: #28a745;
+    color: white;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+.done-btn:hover {
+    background-color: #218838;
+}
+
+
 /* Add Task Button — positioned bottom right */
 .add-task-button {
     position: fixed;

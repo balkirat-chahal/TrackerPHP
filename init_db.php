@@ -47,9 +47,11 @@ CREATE TABLE IF NOT EXISTS todos (
     due DATETIME,
     duration VARCHAR(100),
     priority ENUM('High', 'Medium', 'Low') DEFAULT 'Low',
+    is_completed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-)";
+)
+";
 if (!mysqli_query($conn, $sql_todos)) {
     die("Error creating todos table: " . mysqli_error($conn));
 }
